@@ -10,4 +10,4 @@ Caracteristici cheie:
 
 Notes:
     Domain Layer - Define the Contract
-    Data Layer - Firebase Implementation
+    Data Layer - Firebase Implementation"# x_bee" 
