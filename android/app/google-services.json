@@ -1,0 +1,74 @@
+{
+  "project_info": {
+    "project_number": "565072016641",
+    "firebase_url": "https://beehelperdemo.firebaseio.com",
+    "project_id": "beehelperdemo",
+    "storage_bucket": "beehelperdemo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:565072016641:android:5b14a4939dda2471541700",
+        "android_client_info": {
+          "package_name": "com.example.x_bee"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbrHXclNtLQk6ozxmDirm8haugE1ML6Bw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "565072016641-bv2d2abneqd7295s4fvkhv5b95uvlmnh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.beescanner"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:565072016641:android:be510159c0a6991f541700",
+        "android_client_info": {
+          "package_name": "com.mycompany.beescanner"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "565072016641-r6o5fn5sk5v83okdcb21kbke134ci0t6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mycompany.beescanner",
+            "certificate_hash": "9bbb3186b2189ef16d8f272bdab59362c395cbb4"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbrHXclNtLQk6ozxmDirm8haugE1ML6Bw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "565072016641-bv2d2abneqd7295s4fvkhv5b95uvlmnh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.beescanner"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
