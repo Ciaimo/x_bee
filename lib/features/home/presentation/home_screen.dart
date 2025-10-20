@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:x_bee/features/auth/providers/auth_providers.dart';
+import 'package:x_bee/features/entities/presentation/read_entity_screen.dart';
 import 'package:x_bee/features/organisation/providers/organisation_providers.dart';
 import 'package:x_bee/services/firebase_services.dart';
-import 'package:x_bee/widgets/dropdown_menu_button.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -49,6 +49,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Navigator.pushNamed(context, '/CreateEntity');
               },
               child: Text('Create Entity')),
+          ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            ReadEntityScreen(entityId: 'beehy')));
+              },
+              child: Text('Read Entity')),
         ],
       ),
     );

@@ -8,7 +8,7 @@ class UserModel {
   UserModel({
     required this.uid,
     required this.email,
-    this.organisationId,
+    this.organisationId,  
     this.name,
     this.createdAt,
   });

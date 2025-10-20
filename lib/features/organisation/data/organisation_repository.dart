@@ -1,10 +1,12 @@
 import 'package:x_bee/features/auth/data/auth_repository.dart';
+import 'package:x_bee/features/organisation/domain/oganisation_model.dart';
 import 'package:x_bee/services/firebase_services.dart';
 
 class OrganisationRepository {
   final authRepo = AuthRepository();
 
-  Future<String?> createOrganisation(String name, String ownerId) async {
+  Future<OrganisationModel?> createOrganisation(
+      String name, String ownerId) async {
     try {
       final firestore = FirebaseServices.firestore;
 
@@ -33,7 +35,14 @@ class OrganisationRepository {
 
       //update global user doc
       await authRepo.addOrganisationId(ownerId, orgRef.id);
-      return orgRef.id;
+      // ✅ Return a typed model
+      return OrganisationModel(
+        id: orgRef.id,
+        name: name,
+        ownerId: ownerId,
+        membersIds: [ownerId],
+        createdAt: DateTime.now(),
+      );
     } catch (e) {
       throw Exception('Create Organisation Error: ${e.toString()}');
     }
@@ -68,4 +77,6 @@ class OrganisationRepository {
 
     await authRepo.addOrganisationId(uid, orgId);
   }
+
+  
 }

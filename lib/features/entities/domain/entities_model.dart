@@ -2,8 +2,9 @@ class EntitiesModel {
   String name;
   String type;
 
-  //bool hasQueen;
-  //int queenYear;
+  bool hasQueen;
+  int queenYear;
+  int queenRating;
   //List<, int> frameCount;
 
   String? createdAt;
@@ -11,6 +12,9 @@ class EntitiesModel {
   EntitiesModel({
     required this.name,
     required this.type,
+    required this.hasQueen,
+    required this.queenYear,
+    required this.queenRating,
     this.createdAt,
   });
 
@@ -18,6 +22,9 @@ class EntitiesModel {
     return {
       'name': name,
       'type': type,
+      'hasQueen': hasQueen,
+      'queenYear': queenYear,
+      'queenRating': queenRating,
       'createdAt': createdAt,
     };
   }
@@ -26,6 +33,9 @@ class EntitiesModel {
     return EntitiesModel(
       name: map['name'],
       type: map['type'],
+      hasQueen: map['hasQueen'],
+      queenYear: map['queenYear'],
+      queenRating: map['queenRating'],
       createdAt: map['createdAt'],
     );
   }
