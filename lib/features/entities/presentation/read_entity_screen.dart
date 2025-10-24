@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:x_bee/features/entities/data/entities_repository.dart';
 import 'package:x_bee/features/entities/domain/entities_model.dart';
 import 'package:x_bee/features/entities/providers/entities_providers.dart';
+import 'package:x_bee/features/home/presentation/home_screen.dart';
+import 'package:x_bee/features/home/presentation/main_screen.dart';
 import 'package:x_bee/features/organisation/providers/organisation_providers.dart';
 import 'create_entity_screen.dart'; // for EntityType + getEntityTypeName
 
@@ -61,6 +63,12 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Entity Details'),
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context)),
+        ],
       ),
       body: orgRepo.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -108,6 +116,7 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                   children: [
                     Card(
                         child: ListTile(
+                            style: ListTileStyle.drawer,
                             title: const Text('Name'),
                             subtitle: Text(e.name.isNotEmpty ? e.name : '—'))),
                     const SizedBox(height: 8),
@@ -122,6 +131,11 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                             subtitle: Text(e.hasQueen ? 'Yes' : 'No'))),
                     if (e.hasQueen) ...[
                       const SizedBox(height: 8),
+                      Card(
+                          child: ListTile(
+                        title: const Text('Queen Marked'),
+                        subtitle: Text(e.queenMarked ? "Yes" : 'No'),
+                      )),
                       Card(
                           child: ListTile(
                               title: const Text('Queen Year'),

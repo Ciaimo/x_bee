@@ -11,9 +11,9 @@ import 'package:x_bee/features/organisation/providers/organisation_providers.dar
 enum EntityType {
   beehive,
   nuc,
-  mating_nuc,
+  matingnuc,
   starter,
-  Finisher,
+  finisher,
 }
 
 /// Helper function to convert the enum to a human-readable string.
@@ -23,11 +23,11 @@ String getEntityTypeName(EntityType type) {
       return 'Beehive';
     case EntityType.nuc:
       return 'Nuc';
-    case EntityType.mating_nuc:
+    case EntityType.matingnuc:
       return 'Mating Nuc';
     case EntityType.starter:
       return 'Starter';
-    case EntityType.Finisher:
+    case EntityType.finisher:
       return 'Finisher';
   }
 }
@@ -52,6 +52,7 @@ class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
   String orgID = '';
 
   bool _hasQueen = false;
+  bool _queenMarked = false;
   final TextEditingController _queenYearController = TextEditingController();
   int? _queenRating;
 
@@ -203,6 +204,17 @@ class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
                                       },
                                     ),
                                     const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const Text('Queen Marked'),
+                                        Switch(
+                                          value: _queenMarked,
+                                          onChanged: (val) => setState(
+                                              () => _queenMarked = val),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
                                     DropdownButtonFormField<int>(
                                       initialValue: _queenRating,
                                       decoration: InputDecoration(
@@ -267,6 +279,7 @@ class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
                         hasQueen: hasQueen,
                         queenYear:
                             queenYear != null ? queenYear.toString() : '',
+                        queenMarked: _queenMarked,
                         queenRating:
                             queenRating != null ? queenRating.toString() : '');
 

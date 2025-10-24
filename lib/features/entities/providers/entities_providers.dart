@@ -49,6 +49,8 @@ final singleEntityProvider = StreamProvider.autoDispose
     final type = (data['type'] ?? '').toString();
     final hasQueen = (data['hasQueen'] == true) ||
         (data['hasQueen']?.toString().toLowerCase() == 'true');
+    final queenMarked = (data['queenMarked'] == true) ||
+        (data['queenMarked']?.toString().toLowerCase() == 'true');
 
     int parseInt(dynamic v) {
       if (v == null) return 0;
@@ -74,6 +76,7 @@ final singleEntityProvider = StreamProvider.autoDispose
       queenYear: queenYear,
       queenRating: queenRating,
       createdAt: createdAt,
+      queenMarked: queenMarked,
     );
   });
 });

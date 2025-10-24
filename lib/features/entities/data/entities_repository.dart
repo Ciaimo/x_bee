@@ -9,6 +9,7 @@ class EntitiesRepository {
       required String name,
       required String organisationId,
       required bool hasQueen,
+      required bool queenMarked,
       required String queenYear,
       required String queenRating}) async {
     // Simulate a network call or database operation
@@ -22,6 +23,7 @@ class EntitiesRepository {
       'type': type,
       'name': name,
       'hasQueen': hasQueen,
+      'queenMarked': queenMarked,
       'queenYear': hasQueen ? int.parse(queenYear) : null,
       'queenRating': hasQueen ? int.parse(queenRating) : null,
       'createdAt': DateTime.now(),

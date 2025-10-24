@@ -3,6 +3,7 @@ class EntitiesModel {
   String type;
 
   bool hasQueen;
+  bool queenMarked;
   int queenYear;
   int queenRating;
   //List<, int> frameCount;
@@ -15,6 +16,7 @@ class EntitiesModel {
     required this.hasQueen,
     required this.queenYear,
     required this.queenRating,
+    required this.queenMarked,
     this.createdAt,
   });
 
@@ -25,6 +27,7 @@ class EntitiesModel {
       'hasQueen': hasQueen,
       'queenYear': queenYear,
       'queenRating': queenRating,
+      'queenMarked': queenMarked,
       'createdAt': createdAt,
     };
   }
@@ -34,6 +37,7 @@ class EntitiesModel {
       name: map['name'],
       type: map['type'],
       hasQueen: map['hasQueen'],
+      queenMarked: map['queenMarked'],
       queenYear: map['queenYear'],
       queenRating: map['queenRating'],
       createdAt: map['createdAt'],

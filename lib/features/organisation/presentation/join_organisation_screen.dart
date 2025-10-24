@@ -5,19 +5,19 @@ import 'package:x_bee/main.dart';
 import 'package:x_bee/services/firebase_services.dart';
 import 'package:x_bee/widgets/cred_text_field.dart';
 
-class CreateOrganisationScreen extends ConsumerStatefulWidget {
-  const CreateOrganisationScreen({super.key});
+class JoinOrganisationScreen extends ConsumerStatefulWidget {
+  const JoinOrganisationScreen({super.key});
 
   @override
-  ConsumerState<CreateOrganisationScreen> createState() =>
-      _CreateOrganisationScreenState();
+  ConsumerState<JoinOrganisationScreen> createState() =>
+      _JoinOrganisationScreenState();
 }
 
-class _CreateOrganisationScreenState
-    extends ConsumerState<CreateOrganisationScreen> {
+class _JoinOrganisationScreenState
+    extends ConsumerState<JoinOrganisationScreen> {
   @override
   Widget build(BuildContext context) {
-    final TextEditingController organisationNameController =
+    final TextEditingController joinOriganisationController =
         TextEditingController();
 
     final orgRepo = ref.watch(organisationRepositoryProvider);
@@ -25,27 +25,29 @@ class _CreateOrganisationScreenState
     final auth = FirebaseServices.auth;
     return Scaffold(
       appBar: AppBar(
-        title: Text('Create Organisation'),
+        title: Text('Join Organisation'),
       ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(height: 20),
           CredTextField(
-              controller: organisationNameController,
-              labelText: 'Organisation Name'),
+              controller: joinOriganisationController,
+              labelText: 'Organisation ID'),
           SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               // Handle organisation creation logic here
-              final organisationName = organisationNameController.text;
+              final organisationId = joinOriganisationController.text;
               // You can call your repository method to create the organisation
               try {
-                orgRepo.createOrganisation(
-                    organisationName, auth.currentUser!.uid);
+                orgRepo.addMemberToOrganisation(
+                    orgId: organisationId,
+                    uid: auth.currentUser!.uid,
+                    email: auth.currentUser!.email.toString());
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Organisation Created Successfully')),
+                  SnackBar(content: Text('Organisation Joined Successfully')),
                 );
 
                 Navigator.pushReplacement(
@@ -58,7 +60,7 @@ class _CreateOrganisationScreenState
                 );
               }
             },
-            child: Text('Create Organisation'),
+            child: Text('Join Organisation'),
           ),
         ],
       ),

@@ -62,8 +62,11 @@ class OrganisationRepository {
     });
   }
 
-  Future<void> addMemberToOrganisation(String orgId, String uid, String email,
-      {String role = 'member'}) async {
+  Future<void> addMemberToOrganisation(
+      {required String orgId,
+      required String uid,
+      required String email,
+      String role = 'member'}) async {
     await FirebaseServices.firestore
         .collection('organisations')
         .doc(orgId)
@@ -77,6 +80,4 @@ class OrganisationRepository {
 
     await authRepo.addOrganisationId(uid, orgId);
   }
-
-  
 }

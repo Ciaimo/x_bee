@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:x_bee/features/auth/providers/auth_providers.dart';
+import 'package:x_bee/main.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -22,6 +23,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: ElevatedButton(
             onPressed: () {
               repo.logout();
+              Navigator.pushReplacement(
+                  context, MaterialPageRoute(builder: (_) => AuthWrapper()));
             },
             child: Text('Logout!')),
       ),
