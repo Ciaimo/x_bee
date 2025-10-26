@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:x_bee/features/entities/presentation/read_entity_screen.dart';
 import 'package:x_bee/features/entities/presentation/scan_entity_screen.dart';
 import 'package:x_bee/features/home/presentation/home_screen.dart';
 import 'package:x_bee/features/home/presentation/settings_screen.dart';

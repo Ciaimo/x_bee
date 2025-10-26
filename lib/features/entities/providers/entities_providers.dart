@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:x_bee/features/entities/data/entities_repository.dart';
 import 'package:x_bee/features/entities/domain/entities_model.dart';
+import 'package:x_bee/features/entities/domain/frames_model.dart';
+import 'package:x_bee/features/entities/domain/queen_model.dart';
 import 'package:x_bee/services/firebase_services.dart';
 
 final entitiesProvider = Provider<EntitiesRepository>((ref) {
@@ -17,7 +19,6 @@ class SingleEntityParams {
     required this.entityId,
   });
 
-  // Add equality overrides for proper provider caching
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -30,7 +31,7 @@ class SingleEntityParams {
   int get hashCode => organisationId.hashCode ^ entityId.hashCode;
 }
 
-// FIXED: Added .autoDispose to properly manage the stream lifecycle
+// ✅ Updated provider for nested structure
 final singleEntityProvider = StreamProvider.autoDispose
     .family<EntitiesModel?, SingleEntityParams>((ref, params) {
   final docRef = FirebaseServices.firestore
@@ -45,22 +46,7 @@ final singleEntityProvider = StreamProvider.autoDispose
 
     if (!snap.exists) return null;
     final data = snap.data()!;
-    final name = (data['name'] ?? '').toString();
-    final type = (data['type'] ?? '').toString();
-    final hasQueen = (data['hasQueen'] == true) ||
-        (data['hasQueen']?.toString().toLowerCase() == 'true');
-    final queenMarked = (data['queenMarked'] == true) ||
-        (data['queenMarked']?.toString().toLowerCase() == 'true');
 
-    int parseInt(dynamic v) {
-      if (v == null) return 0;
-      if (v is int) return v;
-      if (v is double) return v.toInt();
-      return int.tryParse(v.toString()) ?? 0;
-    }
-
-    final queenYear = parseInt(data['queenYear']);
-    final queenRating = parseInt(data['queenRating']);
     String? createdAt;
     final createdAtRaw = data['createdAt'];
     if (createdAtRaw is Timestamp) {
@@ -69,14 +55,37 @@ final singleEntityProvider = StreamProvider.autoDispose
       createdAt = createdAtRaw.toString();
     }
 
+    // 🧩 Nested maps
+    final framesMap = Map<String, dynamic>.from(data['frames'] ?? {});
+    final queenMap =
+        data['queen'] != null ? Map<String, dynamic>.from(data['queen']) : null;
+
+    // Safely parse integers
+    int parseInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is double) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
     return EntitiesModel(
-      name: name,
-      type: type,
-      hasQueen: hasQueen,
-      queenYear: queenYear,
-      queenRating: queenRating,
+      name: (data['name'] ?? '').toString(),
+      type: (data['type'] ?? '').toString(),
       createdAt: createdAt,
-      queenMarked: queenMarked,
+      frames: Frames(
+        honeyFrames: parseInt(framesMap['honeyFrames']),
+        broodFrames: parseInt(framesMap['broodFrames']),
+        pollenFrames: parseInt(framesMap['pollenFrames']),
+        emptyFrames: parseInt(framesMap['emptyFrames']),
+      ),
+      queen: queenMap != null
+          ? Queen(
+              hasQueen: queenMap['hasQueen'] == true,
+              marked: queenMap['marked'] == true,
+              year: parseInt(queenMap['year']),
+              rating: parseInt(queenMap['rating']),
+            )
+          : null,
     );
   });
 });

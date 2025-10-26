@@ -65,6 +65,21 @@ class AuthRepository {
     }
   }
 
+  Future<UserModel?> getUserData(String uid) async {
+    try {
+      final docSnapshot = await _firestore.collection('users').doc(uid).get();
+
+      if (docSnapshot.exists && docSnapshot.data() != null) {
+        // Convert the raw map data into a type-safe UserModel
+        return UserModel.fromMap(docSnapshot.data()!);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch user data: ${e.toString()}');
+    }
+  }
+
   //Logout
   Future<void> logout() async {
     await _auth.signOut();

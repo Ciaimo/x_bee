@@ -16,6 +16,7 @@ dependencies:
   flutter_riverpod: ^2.3.0
   permission_handler: ^11.0.1 
   mobile_scanner: 3.5.5
+  intl: ^0.20.2
   
 dev_dependencies:
   flutter_test:
