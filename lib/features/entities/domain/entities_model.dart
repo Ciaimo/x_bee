@@ -16,6 +16,16 @@ class EntitiesModel {
     this.createdAt,
   });
 
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'type': type,
+      'frames': frames.toMap(),
+      if (queen != null) 'queen': queen!.toMap(),
+      if (createdAt != null) 'createdAt': createdAt,
+    };
+  }
+
   // Optional: fromJson / toJson if you use Firebase or API
   factory EntitiesModel.fromMap(Map<String, dynamic> data) {
     return EntitiesModel(
@@ -25,15 +35,5 @@ class EntitiesModel {
       queen: data['queen'] != null ? Queen.fromMap(data['queen']) : null,
       createdAt: data['createdAt'],
     );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'type': type,
-      'frames': frames.toMap(),
-      if (queen != null) 'queen': queen!.toMap(),
-      if (createdAt != null) 'createdAt': createdAt,
-    };
   }
 }

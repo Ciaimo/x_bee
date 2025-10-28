@@ -65,20 +65,23 @@ class AuthRepository {
     }
   }
 
-  Future<UserModel?> getUserData(String uid) async {
-    try {
-      final docSnapshot = await _firestore.collection('users').doc(uid).get();
-
-      if (docSnapshot.exists && docSnapshot.data() != null) {
-        // Convert the raw map data into a type-safe UserModel
-        return UserModel.fromMap(docSnapshot.data()!);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      throw Exception('Failed to fetch user data: ${e.toString()}');
+  Stream<UserModel?> getUserDataStream(String uid) {
+  // Use snapshots() to listen for real-time changes to the document
+  return _firestore.collection('users').doc(uid).snapshots().map((docSnapshot) {
+    if (docSnapshot.exists && docSnapshot.data() != null) {
+      // Map the DocumentSnapshot to your UserModel
+      return UserModel.fromMap(docSnapshot.data()!);
+    } else {
+      // Return null if the document doesn't exist
+      return null;
     }
-  }
+  }).handleError((e) {
+    // Basic error handling for the stream
+    print('Failed to stream user data: $e');
+    // You might throw an error or return null based on your needs
+    throw Exception('Failed to stream user data: ${e.toString()}');
+  });
+}
 
   //Logout
   Future<void> logout() async {

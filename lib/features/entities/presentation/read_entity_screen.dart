@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:x_bee/features/entities/data/entities_repository.dart';
 import 'package:x_bee/features/entities/domain/entities_model.dart';
 import 'package:x_bee/features/entities/providers/entities_providers.dart';
+import 'package:x_bee/features/organisation/data/organisation_repository.dart';
+import 'package:x_bee/features/organisation/domain/race_model.dart'; // <-- ADD THIS
 import 'package:x_bee/features/organisation/providers/organisation_providers.dart';
 import 'create_entity_screen.dart'; // for EntityType + getEntityTypeName
 
@@ -19,17 +21,19 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _editMode = false;
 
-  // Basic Info Controllers & State
+  // Basic Info
   late TextEditingController _nameController;
   EntityType? _selectedType;
 
-  // Queen Info State
+  // Queen Info
   bool _hasQueen = false;
   bool _queenMarked = false;
   late TextEditingController _queenYearController;
+  String? _selectedRace; // stores race.name
+  String? _selectedLine;
   int? _queenRating;
 
-  // Frames Info Controllers (NEW)
+  // Frames
   late TextEditingController _honeyFramesController;
   late TextEditingController _broodFramesController;
   late TextEditingController _pollenFramesController;
@@ -42,7 +46,6 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
     super.initState();
     _nameController = TextEditingController();
     _queenYearController = TextEditingController();
-    // Initialize new controllers
     _honeyFramesController = TextEditingController();
     _broodFramesController = TextEditingController();
     _pollenFramesController = TextEditingController();
@@ -53,7 +56,6 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
   void dispose() {
     _nameController.dispose();
     _queenYearController.dispose();
-    // Dispose new controllers
     _honeyFramesController.dispose();
     _broodFramesController.dispose();
     _pollenFramesController.dispose();
@@ -65,59 +67,48 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
     if (_initializedForEntity) return;
     _initializedForEntity = true;
 
-    // 🟡 Basic Info
+    // Basic
     _nameController.text = entity.name;
     _selectedType = EntityType.values.firstWhere(
       (e) => getEntityTypeName(e).toLowerCase() == entity.type.toLowerCase(),
       orElse: () => EntityType.beehive,
     );
 
-    // 👑 Queen Info (nested, nullable)
-    _hasQueen = entity.queen?.hasQueen ?? false;
-    _queenMarked = entity.queen?.marked ?? false;
-
+    // Queen
+    final queen = entity.queen;
+    _hasQueen = queen?.hasQueen ?? false;
+    _queenMarked = queen?.marked ?? false;
     _queenYearController.text =
-        (entity.queen?.year ?? 0) > 0 ? entity.queen!.year.toString() : '';
+        (queen?.year ?? 0) > 0 ? queen!.year.toString() : '';
+    _queenRating = (queen?.rating ?? 0) > 0 ? queen!.rating : null;
+    _selectedRace = queen?.race;
+    _selectedLine = queen?.line;
 
-    _queenRating =
-        (entity.queen?.rating ?? 0) > 0 ? entity.queen!.rating : null;
-
-    // 🍯 Frames Info (nested)
-    _honeyFramesController.text = (entity.frames.honeyFrames > 0)
-        ? entity.frames.honeyFrames.toString()
-        : '';
-    _broodFramesController.text = (entity.frames.broodFrames > 0)
-        ? entity.frames.broodFrames.toString()
-        : '';
-    _pollenFramesController.text = (entity.frames.pollenFrames > 0)
-        ? entity.frames.pollenFrames.toString()
-        : '';
-    _emptyFramesController.text = (entity.frames.emptyFrames > 0)
-        ? entity.frames.emptyFrames.toString()
-        : '';
+    // Frames
+    final frames = entity.frames;
+    _honeyFramesController.text =
+        frames.honeyFrames > 0 ? frames.honeyFrames.toString() : '';
+    _broodFramesController.text =
+        frames.broodFrames > 0 ? frames.broodFrames.toString() : '';
+    _pollenFramesController.text =
+        frames.pollenFrames > 0 ? frames.pollenFrames.toString() : '';
+    _emptyFramesController.text =
+        frames.emptyFrames > 0 ? frames.emptyFrames.toString() : '';
   }
 
   String _formatDateTime(String? isoString) {
-    if (isoString == null || isoString.isEmpty) {
-      return "—";
-    }
+    if (isoString == null || isoString.isEmpty) return "—";
     try {
-      // 1. Parse the string into a DateTime object
       final dateTime = DateTime.parse(isoString);
-
-      // 2. Format the DateTime object using the user's locale
-      // This will automatically adjust order (DD/MM/YYYY vs MM/DD/YYYY)
-      // Example format: Oct 26, 2025 at 16:38
       return DateFormat.yMMMd().add_Hm().format(dateTime);
     } catch (e) {
-      // Return the original unformatted string or an error message if parsing fails
       return isoString;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final orgRepo = ref.watch(organisationIdProvider);
+    final orgIdAsync = ref.watch(organisationIdProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -125,15 +116,14 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
         automaticallyImplyLeading: false,
         actions: [
           _editMode
-              ? SizedBox(
-                  height: 0.0,
-                )
+              ? const SizedBox.shrink()
               : IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context)),
+                  onPressed: () => Navigator.pop(context),
+                ),
         ],
       ),
-      body: orgRepo.when(
+      body: orgIdAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) =>
             Center(child: Text('Failed to load organisation: $err')),
@@ -156,10 +146,7 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
           }
 
           final params = SingleEntityParams(
-            organisationId: orgId,
-            entityId: widget.entityId,
-          );
-
+              organisationId: orgId, entityId: widget.entityId);
           final entityAsync = ref.watch(singleEntityProvider(params));
           final entitiesRepo = ref.watch(entitiesProvider);
 
@@ -172,12 +159,11 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                 return const Center(child: Text('Entity not found.'));
               }
 
-              // Initialize controllers and state when data is available
               _initializeFromEntity(entity);
 
               return _editMode
                   ? _buildEditForm(entity, orgId, entitiesRepo)
-                  : _buildPreview(entity);
+                  : _buildPreview(entity, orgId);
             },
           );
         },
@@ -185,9 +171,10 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
     );
   }
 
-  // --- WIDGET BUILDERS ---
-
-  Widget _buildPreview(EntitiesModel e) {
+  // ──────────────────────────────────────────────────────────────
+  // PREVIEW MODE
+  // ──────────────────────────────────────────────────────────────
+  Widget _buildPreview(EntitiesModel e, String orgId) {
     final totalFrames = e.frames.honeyFrames +
         e.frames.broodFrames +
         e.frames.pollenFrames +
@@ -198,69 +185,73 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Basic Information Card
+          // Basic Info
           _DetailCard(
-            title: "Basic Information 🐝",
+            title: "Basic Information",
             children: [
               _infoRow("ID", e.name, Icons.label_outline),
               _infoRow("Type", e.type, Icons.inventory_2_outlined),
               _infoRow(
                   "Created At", _formatDateTime(e.createdAt), Icons.date_range),
-              _infoRow("Last Check", "—", Icons.access_time), // placeholder
+              _infoRow("Last Check", "—", Icons.access_time),
             ],
           ),
           const SizedBox(height: 16),
 
-          // 🐝 Queen Information Card (updated for nested structure)
+          // Queen Info
           if (e.queen != null && e.queen!.hasQueen)
             _DetailCard(
-              title: "Queen Information 👑",
+              title: "Queen Information",
               children: [
-                _infoRow("Has Queen", e.queen!.hasQueen ? "Yes" : "No",
-                    Icons.check_circle_outline,
+                _infoRow("Has Queen", "Yes", Icons.check_circle_outline,
                     color: Colors.green),
                 _infoRow("Queen Marked", e.queen!.marked ? "Yes" : "No",
                     Icons.bookmark_border),
-                // 🟢 FIX: Custom Row for Queen Year and Color Code (REVISED)
+                _infoRow(
+                    "Queen Race",
+                    e.queen!.race != null && e.queen!.race!.isNotEmpty
+                        ? e.queen!.race!
+                        : "—",
+                    Icons.pets),
+                _infoRow(
+                    "Queen Line",
+                    e.queen!.line != null && e.queen!.line!.isNotEmpty
+                        ? e.queen!.line!
+                        : "—",
+                    Icons.line_weight),
+
+                // Year + Color
                 Padding(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16.0, vertical: 8.0),
                   child: Row(
                     children: [
-                      // 1. Icon and Label (Left side)
                       Icon(Icons.calendar_today_outlined,
                           color: Theme.of(context).primaryColor),
                       const SizedBox(width: 12),
-                      const Text(
-                        "Queen Year",
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 16),
-                      ),
-
-                      const Spacer(), // Pushes the rest to the right
-
-                      // 2. Year Text and Color Indicator (Right side - Grouped)
-                      // Grouping them ensures they stay together.
+                      const Text("Queen Year",
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 16)),
+                      const Spacer(),
                       Row(
-                        mainAxisSize: MainAxisSize
-                            .min, // Crucial: ensures the Row only takes the space it needs
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Year Text
                           Text(
                             e.queen!.year > 0 ? e.queen!.year.toString() : "—",
                             style: const TextStyle(
                                 color: Colors.black54, fontSize: 16),
                           ),
-
-                          // Queen Color Indicator
                           _buildColorIndicator(e.queen!.year, e.queen!.marked),
                         ],
                       ),
                     ],
                   ),
                 ),
+
+                // Rating
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 8.0, horizontal: 16.0),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -275,17 +266,16 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
             )
           else
             _DetailCard(
-              title: "Queen Information 😔",
+              title: "Queen Information",
               color: Colors.red.shade100,
               children: [
                 Center(
                   child: Text(
                     'Queenless',
                     style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.bold,
-                    ),
+                        fontSize: 18,
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -296,7 +286,7 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
 
           const SizedBox(height: 16),
 
-          // Frames Information Card (NEW)
+          // Frames
           _DetailCard(
             divider: false,
             title: '',
@@ -305,35 +295,31 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                 TextSpan(
                   text: "Frame Count: ",
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                  children: <TextSpan>[
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor),
+                  children: [
                     TextSpan(
                       text: totalFrames.toString(),
                       style: const TextStyle(
-                        color: Colors.red, // 🔴 Applied Red Color
-                        fontWeight: FontWeight.w900,
-                      ),
+                          color: Colors.red, fontWeight: FontWeight.w900),
                     ),
                     const TextSpan(
-                      text: " 🍯",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                        text: " ",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
               const Divider(height: 16),
               _infoRow("Honey Frames", e.frames.honeyFrames.toString(),
-                  Icons.hexagon_outlined),
+                  Icons.cake_outlined),
               _infoRow("Brood Frames", e.frames.broodFrames.toString(),
-                  Icons.bug_report_outlined),
+                  Icons.child_care_outlined),
               _infoRow("Pollen Frames", e.frames.pollenFrames.toString(),
-                  Icons.flare_outlined),
+                  Icons.eco_outlined),
               _infoRow("Empty Frames", e.frames.emptyFrames.toString(),
-                  Icons.texture),
+                  Icons.texture_outlined),
             ],
           ),
 
@@ -346,17 +332,16 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
               padding: EdgeInsets.all(12.0),
               child: Text('Edit Entity Data', style: TextStyle(fontSize: 16)),
             ),
-            onPressed: () {
-              // Ensure initialization runs before entering edit mode
-              _initializeFromEntity(e);
-              setState(() => _editMode = true);
-            },
+            onPressed: () => setState(() => _editMode = true),
           ),
         ],
       ),
     );
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // EDIT MODE
+  // ──────────────────────────────────────────────────────────────
   Widget _buildEditForm(
       EntitiesModel e, String orgId, EntitiesRepository entitiesRepo) {
     return Padding(
@@ -365,11 +350,10 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
         key: _formKey,
         child: ListView(
           children: [
-            // Basic Information Card
+            // Basic Info
             _DetailCard(
-              title: "Basic Information ✍️",
+              title: "Basic Information",
               children: [
-                // Type Dropdown
                 const Text('Type',
                     style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
@@ -384,8 +368,6 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                       const InputDecoration(border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 16),
-
-                // Name Field
                 const Text('Name',
                     style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
@@ -393,35 +375,33 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                   controller: _nameController,
                   decoration: const InputDecoration(
                       border: OutlineInputBorder(), hintText: 'Entity Name'),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Name required';
-                    }
-                    return null;
-                  },
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Name required' : null,
                 ),
                 const SizedBox(height: 16),
-                _infoRow("Created At", e.createdAt ?? "—", Icons.date_range),
+                _infoRow("Created At", _formatDateTime(e.createdAt),
+                    Icons.date_range),
                 _infoRow("Last Check", "—", Icons.access_time),
               ],
             ),
 
             const SizedBox(height: 16),
 
-            // Queen Information Card
+            // Queen Info
             _DetailCard(
-              title: "Queen Information ✍️",
+              title: "Queen Information",
               children: [
                 SwitchListTile(
                   title: const Text('Has Queen'),
                   value: _hasQueen,
                   onChanged: (v) => setState(() {
                     _hasQueen = v;
-                    // Reset queen-related fields if 'Has Queen' is turned off
                     if (!v) {
                       _queenMarked = false;
                       _queenYearController.clear();
                       _queenRating = null;
+                      _selectedRace = null;
+                      _selectedLine = null;
                     }
                   }),
                 ),
@@ -431,25 +411,101 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                     value: _queenMarked,
                     onChanged: (v) => setState(() => _queenMarked = v),
                   ),
-                  const SizedBox(height: 8),
+
+                  const SizedBox(height: 16),
+
+                  // RACE DROPDOWN
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final orgAsync = ref.watch(organisationProvider(orgId));
+                      return orgAsync.when(
+                        data: (org) {
+                          final races = org?.constants?.races ?? <Race>[];
+                          final selectedRaceObj = races.isNotEmpty
+                              ? races.firstWhere((r) => r.name == _selectedRace,
+                                  orElse: () => races.first)
+                              : null;
+
+                          return DropdownButtonFormField<Race>(
+                            value: selectedRaceObj,
+                            hint: const Text('Select Queen Race'),
+                            items: races
+                                .map((race) => DropdownMenuItem(
+                                    value: race, child: Text(race.name)))
+                                .toList(),
+                            onChanged: (Race? newRace) {
+                              setState(() {
+                                _selectedRace = newRace?.name;
+                                _selectedLine = null;
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Queen Race',
+                              border: OutlineInputBorder(),
+                            ),
+                          );
+                        },
+                        loading: () => const LinearProgressIndicator(),
+                        error: (_, __) => const Text('Failed to load races'),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // LINE DROPDOWN
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final orgAsync = ref.watch(organisationProvider(orgId));
+                      return orgAsync.when(
+                        data: (org) {
+                          final races = org?.constants?.races ?? <Race>[];
+                          final selectedRaceObj = races.firstWhere(
+                            (r) => r.name == _selectedRace,
+                            orElse: () => Race(id: '', name: '', lines: []),
+                          );
+
+                          return DropdownButtonFormField<String>(
+                            value: _selectedLine,
+                            hint: const Text('Select Line (optional)'),
+                            items: selectedRaceObj.lines
+                                .map((line) => DropdownMenuItem(
+                                    value: line, child: Text(line)))
+                                .toList(),
+                            onChanged: (line) =>
+                                setState(() => _selectedLine = line),
+                            decoration: const InputDecoration(
+                              labelText: 'Queen Line',
+                              border: OutlineInputBorder(),
+                            ),
+                          );
+                        },
+                        loading: () => const LinearProgressIndicator(),
+                        error: (_, __) => const Text('Failed to load lines'),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Year
                   TextFormField(
                     controller: _queenYearController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'Queen Year (e.g., 2024)',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) {
-                      if (v!.isNotEmpty && int.tryParse(v) == null) {
-                        return 'Must be a valid year (number)';
-                      }
-                      return null;
-                    },
+                        labelText: 'Queen Year (e.g., 2024)',
+                        border: OutlineInputBorder()),
+                    validator: (v) => v!.isNotEmpty && int.tryParse(v) == null
+                        ? 'Invalid year'
+                        : null,
                   ),
+
                   const SizedBox(height: 16),
+
+                  // Rating
                   DropdownButtonFormField<int>(
                     value: _queenRating,
-                    hint: const Text('Select Queen Rating (1-5)'),
+                    hint: const Text('Select Rating (1-5)'),
                     items: List.generate(5, (i) => i + 1)
                         .map((r) => DropdownMenuItem(
                             value: r,
@@ -457,19 +513,18 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
                         .toList(),
                     onChanged: (v) => setState(() => _queenRating = v),
                     decoration: const InputDecoration(
-                      labelText: 'Queen Rating',
-                      border: OutlineInputBorder(),
-                    ),
+                        labelText: 'Queen Rating',
+                        border: OutlineInputBorder()),
                   ),
-                ]
+                ],
               ],
             ),
 
             const SizedBox(height: 16),
 
-            // Frames Information Card (NEW)
+            // Frames
             _DetailCard(
-              title: "Frame Count ✍️",
+              title: "Frame Count",
               children: [
                 _buildFrameTextField('Honey Frames', _honeyFramesController),
                 _buildFrameTextField('Brood Frames', _broodFramesController),
@@ -480,7 +535,7 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
 
             const SizedBox(height: 24),
 
-            // Action Buttons
+            // Buttons
             Row(
               children: [
                 Expanded(
@@ -511,67 +566,69 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
     );
   }
 
-  // --- HELPER METHODS AND WIDGETS ---
-
+  // ──────────────────────────────────────────────────────────────
+  // SAVE CHANGES
+  // ──────────────────────────────────────────────────────────────
   Future<void> _saveChanges(
       String orgId, EntitiesRepository entitiesRepo) async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
-    // Helper to safely parse int from controller, defaulting to 0
-    int _safeParse(TextEditingController controller) {
-      return int.tryParse(controller.text.trim()) ?? 0;
-    }
+    int _parse(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
 
     final updates = <String, dynamic>{
       'name': _nameController.text.trim(),
       'type': getEntityTypeName(_selectedType ?? EntityType.beehive),
       'frames': {
-        'honeyFrames': _safeParse(_honeyFramesController),
-        'broodFrames': _safeParse(_broodFramesController),
-        'pollenFrames': _safeParse(_pollenFramesController),
-        'emptyFrames': _safeParse(_emptyFramesController),
+        'honeyFrames': _parse(_honeyFramesController),
+        'broodFrames': _parse(_broodFramesController),
+        'pollenFrames': _parse(_pollenFramesController),
+        'emptyFrames': _parse(_emptyFramesController),
       },
       'queen': _hasQueen
           ? {
               'hasQueen': _hasQueen,
               'marked': _queenMarked,
-              'year': _safeParse(_queenYearController),
+              'year': _parse(_queenYearController),
               'rating': _queenRating ?? 0,
+              'race': _selectedRace ?? '',
+              'line': _selectedLine ?? '',
             }
           : null,
     };
 
     try {
       await entitiesRepo.updateEntity(
-          organisationId: orgId, entityId: widget.entityId, updates: updates);
+        organisationId: orgId,
+        entityId: widget.entityId,
+        updates: updates,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Entity updated successfully!')));
+          const SnackBar(content: Text('Entity updated successfully!')),
+        );
+        _initializedForEntity = false;
         setState(() => _editMode = false);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Save failed. Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
       }
     }
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // HELPER WIDGETS
+  // ──────────────────────────────────────────────────────────────
   Widget _infoRow(String title, String value, IconData icon, {Color? color}) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0),
       leading: Icon(icon, color: color ?? Theme.of(context).primaryColor),
-      title: Text(
-        title,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-      ),
-      subtitle: Text(
-        value,
-        style: const TextStyle(color: Colors.black54, fontSize: 14),
-      ),
-      isThreeLine: true,
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+      subtitle: Text(value,
+          style: const TextStyle(color: Colors.black54, fontSize: 14)),
     );
   }
 
@@ -582,102 +639,72 @@ class _ReadEntityScreenState extends ConsumerState<ReadEntityScreen> {
         controller: controller,
         keyboardType: TextInputType.number,
         decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
+            labelText: label, border: const OutlineInputBorder()),
         validator: (v) {
-          if (v!.isNotEmpty && int.tryParse(v) == null) {
-            return 'Must be a valid number';
-          }
-          // Optional: Add a check for non-negative numbers
-          if (v.isNotEmpty && (int.tryParse(v) ?? 0) < 0) {
+          if (v!.isNotEmpty && int.tryParse(v) == null) return 'Invalid number';
+          if (v.isNotEmpty && (int.tryParse(v) ?? 0) < 0)
             return 'Cannot be negative';
-          }
           return null;
         },
       ),
     );
   }
 
-  /// Builds a star rating display like ⭐⭐⭐⭐☆
   Widget _buildRatingStars(int? rating) {
-    const maxStars = 5;
-    if (rating == null || rating <= 0) {
+    const max = 5;
+    if (rating == null || rating <= 0)
       return const Text('—',
           style: TextStyle(color: Colors.black54, fontSize: 16));
-    }
-    final filledStars = '⭐' * rating;
-    final emptyStars = '☆' * (maxStars - rating);
-    return Text(
-      '$filledStars$emptyStars',
-      style: const TextStyle(fontSize: 16),
+    return Text('⭐' * rating + '☆' * (max - rating),
+        style: const TextStyle(fontSize: 16));
+  }
+
+  Color _getQueenColor(int year) {
+    if (year <= 0) return Colors.grey;
+    final d = year % 10;
+    return switch (d) {
+      1 || 6 => Colors.white,
+      2 || 7 => Colors.yellow,
+      3 || 8 => Colors.red,
+      4 || 9 => Colors.green,
+      _ => Colors.blue,
+    };
+  }
+
+  Widget _buildColorIndicator(int year, bool marked) {
+    if (!marked || year <= 0) return const SizedBox.shrink();
+    final color = _getQueenColor(year);
+    final isWhite = color == Colors.white;
+    return Padding(
+      padding: const EdgeInsets.only(left: 8.0),
+      child: Container(
+        width: 16,
+        height: 16,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: isWhite ? Border.all(color: Colors.grey, width: 1) : null,
+        ),
+      ),
     );
   }
 }
 
-/// Returns the International Queen Bee Color based on the year.
-Color _getQueenColor(int year) {
-  if (year <= 0) return Colors.grey;
-  final lastDigit = year % 10;
-
-  switch (lastDigit) {
-    case 1:
-    case 6:
-      return Colors.white; // Often represented by a grey box in UI
-    case 2:
-    case 7:
-      return Colors.yellow;
-    case 3:
-    case 8:
-      return Colors.red;
-    case 4:
-    case 9:
-      return Colors.green;
-    case 5:
-    case 0:
-      return Colors.blue;
-    default:
-      return Colors.grey;
-  }
-}
-
-/// Returns a small colored circle widget representing the queen color code.
-Widget _buildColorIndicator(int year, bool isMarked) {
-  if (!isMarked || year <= 0) {
-    return const SizedBox.shrink();
-  }
-
-  final color = _getQueenColor(year);
-  final isWhite = color == Colors.white;
-
-  // For White, use a small grey border to make it visible against a white background
-  return Padding(
-    padding: const EdgeInsets.only(left: 8.0),
-    child: Container(
-      width: 16,
-      height: 16,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: isWhite ? Border.all(color: Colors.grey, width: 1) : null,
-      ),
-    ),
-  );
-}
-
-// Custom Card Widget for reusability and styling
+// ──────────────────────────────────────────────────────────────
+// REUSABLE CARD
+// ──────────────────────────────────────────────────────────────
 class _DetailCard extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final Color? color;
-  final bool? divider; // This is now useful
+  final bool divider;
 
-  const _DetailCard(
-      {required this.title,
-      required this.children,
-      this.color,
-      this.divider = true // Default the divider to true for existing calls
-      });
+  const _DetailCard({
+    required this.title,
+    required this.children,
+    this.color,
+    this.divider = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -694,23 +721,18 @@ class _DetailCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🟢 1. CONDITIONALLY RENDER THE DEFAULT TITLE
             if (title.isNotEmpty)
               Text(
                 title,
                 style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color != null
-                        ? Colors.black
-                        : Theme.of(context).primaryColor),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color != null
+                      ? Colors.black
+                      : Theme.of(context).primaryColor,
+                ),
               ),
-
-            // 🟢 2. CONDITIONALLY RENDER THE DIVIDER
-            if (title.isNotEmpty && (divider ?? true))
-              const Divider(height: 16),
-
-            // 3. Render all custom children (including your RichText title)
+            if (title.isNotEmpty && divider) const Divider(height: 16),
             ...children,
           ],
         ),

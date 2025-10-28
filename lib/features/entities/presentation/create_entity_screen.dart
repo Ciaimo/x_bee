@@ -5,21 +5,10 @@ import 'package:x_bee/features/entities/domain/frames_model.dart';
 import 'package:x_bee/features/entities/domain/queen_model.dart';
 import 'package:x_bee/features/entities/providers/entities_providers.dart';
 import 'package:x_bee/features/organisation/providers/organisation_providers.dart';
+import 'package:x_bee/features/organisation/domain/race_model.dart'; // <-- already there
 
-// ----------------------------------------------------------------------
-// 1. Placeholder Data (Kept as is)
-// ----------------------------------------------------------------------
+enum EntityType { beehive, nuc, matingnuc, starter, finisher }
 
-/// Enum to represent the different types of entities.
-enum EntityType {
-  beehive,
-  nuc,
-  matingnuc,
-  starter,
-  finisher,
-}
-
-/// Helper function to convert the enum to a human-readable string.
 String getEntityTypeName(EntityType type) {
   switch (type) {
     case EntityType.beehive:
@@ -35,10 +24,6 @@ String getEntityTypeName(EntityType type) {
   }
 }
 
-// ----------------------------------------------------------------------
-// 2. The Entity Creation Page Widget (Styled)
-// ----------------------------------------------------------------------
-
 class CreateEntityScreen extends ConsumerStatefulWidget {
   const CreateEntityScreen({super.key});
 
@@ -47,30 +32,25 @@ class CreateEntityScreen extends ConsumerStatefulWidget {
 }
 
 class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
-  // State variables for the form
+  // Form controllers
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _queenYearController = TextEditingController();
+  final _honeyFramesController = TextEditingController();
+  final _broodFramesController = TextEditingController();
+  final _pollenFramesController = TextEditingController();
+  final _emptyFramesController = TextEditingController();
+
+  // State variables
   EntityType? _selectedType;
-  final TextEditingController _nameController = TextEditingController();
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  String orgID = '';
-
-  // queen info
+  Race? _selectedRace;          // <-- full Race object
+  String? _selectedLine;        // <-- line string (belongs to the selected race)
   bool _hasQueen = false;
   bool _queenMarked = false;
-  final TextEditingController _queenYearController = TextEditingController();
   int? _queenRating;
-
-  // **CRITICAL FIX: Renamed and added unique controllers**
-  // beehive info
-  final TextEditingController _honeyFramesController = TextEditingController();
-  final TextEditingController _broodFramesController = TextEditingController();
-  final TextEditingController _pollenFramesController =
-      TextEditingController(); // Corrected spelling
-  final TextEditingController _emptyFramesController = TextEditingController();
 
   @override
   void dispose() {
-    // Dispose of all controllers to prevent memory leaks
     _nameController.dispose();
     _queenYearController.dispose();
     _honeyFramesController.dispose();
@@ -80,7 +60,23 @@ class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
     super.dispose();
   }
 
-  // Helper for consistent field styling
+  // ──────────────────────────────────────────────────────────────
+  // UI helpers (unchanged)
+  // ──────────────────────────────────────────────────────────────
+  Widget _buildNumberField(
+      TextEditingController controller, String label, IconData icon) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: _getInputDecoration(labelText: label, prefixIcon: icon),
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Required';
+        if (int.tryParse(v) == null) return 'Enter a valid number';
+        return null;
+      },
+    );
+  }
+
   InputDecoration _getInputDecoration({
     required String labelText,
     String? hintText,
@@ -90,35 +86,26 @@ class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
       labelText: labelText,
       hintText: hintText,
       prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
-      fillColor: Colors.white, // Lighter background for fields
+      fillColor: Colors.white,
       filled: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.0), // More rounded corners
-        borderSide:
-            BorderSide.none, // Hide default border when using filled: true
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary,
-            width: 2.0), // Highlight on focus
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.0),
-        borderSide: const BorderSide(color: Colors.red, width: 1.0),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12.0),
-        borderSide: const BorderSide(color: Colors.red, width: 2.0),
+          color: Theme.of(context).colorScheme.primary,
+          width: 2,
+        ),
       ),
     );
   }
 
-  // Helper for section titles
   Widget _buildSectionTitle(String title, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -136,382 +123,297 @@ class _CreateEntityScreenState extends ConsumerState<CreateEntityScreen> {
     );
   }
 
+  // ──────────────────────────────────────────────────────────────
+  // MAIN BUILD
+  // ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final Color primaryColor = Theme.of(context).colorScheme.primary;
+    final primaryColor = Theme.of(context).colorScheme.primary;
     final entitiesRef = ref.watch(entitiesProvider);
-    final orgIdRepo = ref.watch(organisationIdProvider);
+    final orgIdAsync = ref.watch(organisationIdProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create New Entity'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
-        elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // --- 1. Entity Type Dropdown ---
-                _buildSectionTitle(
-                    'General Entity Details', Icons.info_outline),
+      body: orgIdAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Error this is orgIDASYNC: $err')),
+        data: (orgId) {
+          if (orgId == null || orgId.isEmpty) {
+            return const Center(child: Text('No organisation linked.'));
+          }
 
-                DropdownButtonFormField<EntityType>(
-                  initialValue: _selectedType,
-                  decoration: _getInputDecoration(
-                    labelText: 'Entity Type',
-                    prefixIcon: Icons.hive_outlined,
-                  ),
-                  hint: const Text('Choose a Type (Required)'),
-                  isExpanded: true,
-                  items: EntityType.values.map((EntityType type) {
-                    return DropdownMenuItem<EntityType>(
-                      value: type,
-                      child: Text(getEntityTypeName(type)),
-                    );
-                  }).toList(),
-                  onChanged: (EntityType? newValue) {
-                    setState(() {
-                      _selectedType = newValue;
-                    });
-                  },
-                  validator: (EntityType? value) {
-                    if (value == null) {
-                      return 'Please select an entity type.';
-                    }
-                    return null;
-                  },
-                ),
+          final organisationAsync = ref.watch(organisationProvider(orgId));
 
-                const SizedBox(height: 16.0),
+          return organisationAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Text('Error loading organisation ID: $orgId $err'),
+            data: (org) {
+              if (org == null) {
+                return const Center(child: Text('Organisation not found.'));
+              }
 
-                // --- 2. Entity Name Text Field ---
-                TextFormField(
-                  controller: _nameController,
-                  decoration: _getInputDecoration(
-                    labelText: 'Entity Name',
-                    hintText: 'e.g., Beehive 101',
-                    prefixIcon: Icons.drive_file_rename_outline,
-                  ),
-                  validator: (String? value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Entity Name cannot be empty.';
-                    }
-                    return null;
-                  },
-                ),
+              // ----------------------------------------------------
+              // 1. Races (already parsed inside OrganisationConstants)
+              // ----------------------------------------------------
+              final List<Race> races = org.constants?.races ?? [];
 
-                const SizedBox(height: 32.0),
-
-                // -------------------------------------------------------------
-                // --- 3. Queen Information Card (Styled) ----------------------
-                // -------------------------------------------------------------
-                Card(
-                  elevation: 6.0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Form(
+                    key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildSectionTitle('Queen Information', Icons.info),
+                        // ------------------ Entity Details ------------------
+                        _buildSectionTitle('General Entity Details', Icons.info_outline),
 
-                        // Has Queen Switch
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Has Queen',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w500),
-                            ),
-                            Switch.adaptive(
-                              value: _hasQueen,
-                              onChanged: (val) =>
-                                  setState(() => _hasQueen = val),
-                              activeColor: primaryColor,
-                            ),
-                          ],
+                        DropdownButtonFormField<EntityType>(
+                          value: _selectedType,
+                          decoration: _getInputDecoration(
+                            labelText: 'Entity Type',
+                            prefixIcon: Icons.hive_outlined,
+                          ),
+                          hint: const Text('Choose a Type (Required)'),
+                          isExpanded: true,
+                          items: EntityType.values.map((type) {
+                            return DropdownMenuItem(
+                              value: type,
+                              child: Text(getEntityTypeName(type)),
+                            );
+                          }).toList(),
+                          onChanged: (val) => setState(() => _selectedType = val),
+                          validator: (val) => val == null ? 'Please select an entity type' : null,
                         ),
 
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          child: _hasQueen
-                              ? Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: _getInputDecoration(
+                            labelText: 'Entity Name',
+                            hintText: 'e.g., Beehive 101',
+                            prefixIcon: Icons.drive_file_rename_outline,
+                          ),
+                          validator: (v) => v == null || v.isEmpty ? 'Entity name required' : null,
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // ------------------ Queen Section ------------------
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildSectionTitle('Queen Information', Icons.pets_outlined),
+
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Divider(height: 24),
-
-                                    // Queen Year Input
-                                    TextFormField(
-                                      controller: _queenYearController,
-                                      keyboardType: TextInputType.number,
-                                      decoration: _getInputDecoration(
-                                        labelText: 'Queen Year (e.g. 2023)',
-                                        prefixIcon: Icons.calendar_today,
-                                      ),
-                                      validator: (v) {
-                                        if (_hasQueen) {
-                                          if (v == null || v.isEmpty) {
-                                            return 'Please enter queen year';
-                                          }
-                                          if (int.tryParse(v) == null) {
-                                            return 'Enter a valid year';
-                                          }
-                                        }
-                                        return null;
-                                      },
-                                    ),
-
-                                    const SizedBox(height: 16),
-
-                                    // Queen Marked Switch
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'Queen Marked',
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500),
-                                        ),
-                                        Switch.adaptive(
-                                          value: _queenMarked,
-                                          onChanged: (val) => setState(
-                                              () => _queenMarked = val),
-                                          activeColor: primaryColor,
-                                        ),
-                                      ],
-                                    ),
-
-                                    const SizedBox(height: 16),
-
-                                    // Queen Rating Dropdown
-                                    DropdownButtonFormField<int>(
-                                      value: _queenRating,
-                                      decoration: _getInputDecoration(
-                                        labelText: 'Queen Rating (1-5)',
-                                        prefixIcon: Icons.star_half_outlined,
-                                      ),
-                                      items: List.generate(5, (i) => i + 1)
-                                          .map((v) => DropdownMenuItem<int>(
-                                              value: v,
-                                              child: Text(v.toString())))
-                                          .toList(),
-                                      onChanged: (v) =>
-                                          setState(() => _queenRating = v),
-                                      validator: (v) {
-                                        if (_hasQueen && v == null) {
-                                          return 'Please select a rating';
-                                        }
-                                        return null;
-                                      },
+                                    const Text('Has Queen', style: TextStyle(fontSize: 16)),
+                                    Switch.adaptive(
+                                      value: _hasQueen,
+                                      onChanged: (val) => setState(() => _hasQueen = val),
+                                      activeColor: primaryColor,
                                     ),
                                   ],
-                                )
-                              : const SizedBox.shrink(),
+                                ),
+
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  child: !_hasQueen
+                                      ? const SizedBox.shrink()
+                                      : Column(
+                                          children: [
+                                            const Divider(height: 24),
+
+                                            // Queen Year
+                                            TextFormField(
+                                              controller: _queenYearController,
+                                              keyboardType: TextInputType.number,
+                                              decoration: _getInputDecoration(
+                                                labelText: 'Queen Year (e.g. 2024)',
+                                                prefixIcon: Icons.calendar_today,
+                                              ),
+                                              validator: (v) {
+                                                if (_hasQueen) {
+                                                  if (v == null || v.isEmpty) return 'Please enter queen year';
+                                                  if (int.tryParse(v) == null) return 'Enter a valid year';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+
+                                            const SizedBox(height: 16),
+
+                                            // Queen Marked
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                const Text('Queen Marked', style: TextStyle(fontSize: 16)),
+                                                Switch.adaptive(
+                                                  value: _queenMarked,
+                                                  onChanged: (val) => setState(() => _queenMarked = val),
+                                                  activeColor: primaryColor,
+                                                ),
+                                              ],
+                                            ),
+
+                                            const SizedBox(height: 16),
+
+                                            // ───── RACE DROPDOWN ─────
+                                            DropdownButtonFormField<Race>(
+                                              value: _selectedRace,
+                                              decoration: _getInputDecoration(
+                                                labelText: 'Queen Race',
+                                                prefixIcon: Icons.pets_outlined,
+                                              ),
+                                              hint: const Text('Select race'),
+                                              items: races
+                                                  .map((race) => DropdownMenuItem<Race>(
+                                                        value: race,
+                                                        child: Text(race.name),
+                                                      ))
+                                                  .toList(),
+                                              onChanged: (Race? newRace) {
+                                                setState(() {
+                                                  _selectedRace = newRace;
+                                                  _selectedLine = null; // reset line when race changes
+                                                });
+                                              },
+                                            ),
+
+                                            const SizedBox(height: 16),
+
+                                            // ───── LINE DROPDOWN (depends on selected race) ─────
+                                            Consumer(
+                                              builder: (context, ref, child) {
+                                                final List<String> currentLines =
+                                                    _selectedRace?.lines ?? [];
+
+                                                return DropdownButtonFormField<String>(
+                                                  value: _selectedLine,
+                                                  decoration: _getInputDecoration(
+                                                    labelText: 'Queen Line',
+                                                    prefixIcon: Icons.line_weight_outlined,
+                                                  ),
+                                                  hint: const Text('Select line (optional)'),
+                                                  items: currentLines
+                                                      .map((line) => DropdownMenuItem(
+                                                            value: line,
+                                                            child: Text(line),
+                                                          ))
+                                                      .toList(),
+                                                  onChanged: (String? line) => setState(() => _selectedLine = line),
+                                                );
+                                              },
+                                            ),
+
+                                            const SizedBox(height: 16),
+
+                                            // Rating
+                                            DropdownButtonFormField<int>(
+                                              value: _queenRating,
+                                              decoration: _getInputDecoration(
+                                                labelText: 'Queen Rating (1–5)',
+                                                prefixIcon: Icons.star_half_outlined,
+                                              ),
+                                              items: List.generate(5, (i) => i + 1)
+                                                  .map((v) => DropdownMenuItem(value: v, child: Text(v.toString())))
+                                                  .toList(),
+                                              onChanged: (v) => setState(() => _queenRating = v),
+                                            ),
+                                          ],
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ------------------ Frames Section ------------------
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                _buildSectionTitle('Beehive Interior Status', Icons.dashboard_outlined),
+
+                                _buildNumberField(_honeyFramesController, 'Number of Honey Frames', Icons.cake_outlined),
+                                const SizedBox(height: 16),
+                                _buildNumberField(_broodFramesController, 'Number of Brood Frames', Icons.child_care_outlined),
+                                const SizedBox(height: 16),
+                                _buildNumberField(_pollenFramesController, 'Number of Pollen Frames', Icons.eco_outlined),
+                                const SizedBox(height: 16),
+                                _buildNumberField(_emptyFramesController, 'Number of Empty Frames', Icons.texture_outlined),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // ------------------ Submit ------------------
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (!_formKey.currentState!.validate()) return;
+
+                            final entity = EntitiesModel(
+                              name: _nameController.text.trim(),
+                              type: _selectedType != null ? getEntityTypeName(_selectedType!) : '',
+                              createdAt: DateTime.now().toIso8601String(),
+                              frames: Frames(
+                                honeyFrames: int.tryParse(_honeyFramesController.text) ?? 0,
+                                broodFrames: int.tryParse(_broodFramesController.text) ?? 0,
+                                pollenFrames: int.tryParse(_pollenFramesController.text) ?? 0,
+                                emptyFrames: int.tryParse(_emptyFramesController.text) ?? 0,
+                              ),
+                              queen: _hasQueen
+                                  ? Queen(
+                                      hasQueen: _hasQueen,
+                                      marked: _queenMarked,
+                                      year: int.tryParse(_queenYearController.text) ?? 0,
+                                      rating: _queenRating ?? 0,
+                                      race: _selectedRace?.name ?? '',
+                                      line: _selectedLine ?? '',
+                                    )
+                                  : null,
+                            );
+
+                            entitiesRef.createEntity(organisationId: orgId, entity: entity);
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Text('Create Entity', style: TextStyle(fontSize: 18)),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // -------------------------------------------------------------
-                // --- 4. Beehive Interior Status Card (Styled and Fixed) ------
-                // -------------------------------------------------------------
-                Card(
-                  elevation: 6.0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0)),
-                  // Removed explicit background color
-                  // color: Colors.grey[100],
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _buildSectionTitle('Beehive Interior Status',
-                            Icons.dashboard_outlined),
-
-                        // 1. Honey Frames Input
-                        TextFormField(
-                          // **FIXED CONTROLLER**
-                          controller: _honeyFramesController,
-                          keyboardType: TextInputType.number,
-                          decoration: _getInputDecoration(
-                            labelText: 'Number of Honey Frames',
-                            hintText: 'e.g., 5',
-                            prefixIcon: Icons.cake_outlined,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Please enter number of honey frames';
-                            }
-                            if (int.tryParse(v) == null) {
-                              return 'Enter a valid number';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 16.0),
-
-                        // 2. Brood Frames Input
-                        TextFormField(
-                          // **FIXED CONTROLLER**
-                          controller: _broodFramesController,
-                          keyboardType: TextInputType.number,
-                          decoration: _getInputDecoration(
-                            labelText: 'Number of Brood Frames',
-                            hintText: 'e.g., 8',
-                            prefixIcon: Icons.child_care_outlined,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Please enter number of brood frames';
-                            }
-                            if (int.tryParse(v) == null) {
-                              return 'Enter a valid number';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 16.0),
-
-                        // 3. Pollen Frames Input (Corrected 'polen' to 'pollen' in both label and controller)
-                        TextFormField(
-                          // **FIXED CONTROLLER**
-                          controller: _pollenFramesController,
-                          keyboardType: TextInputType.number,
-                          decoration: _getInputDecoration(
-                            labelText: 'Number of Pollen Frames',
-                            hintText: 'e.g., 2',
-                            prefixIcon: Icons.eco_outlined,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Please enter number of pollen frames';
-                            }
-                            if (int.tryParse(v) == null) {
-                              return 'Enter a valid number';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        const SizedBox(height: 16.0),
-
-                        // 4. Empty Frames Input
-                        TextFormField(
-                          // **FIXED CONTROLLER**
-                          controller: _emptyFramesController,
-                          keyboardType: TextInputType.number,
-                          decoration: _getInputDecoration(
-                            labelText: 'Number of Empty Frames',
-                            hintText: 'e.g., 1',
-                            prefixIcon: Icons.texture_outlined,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) {
-                              return 'Please enter number of empty frames';
-                            }
-                            if (int.tryParse(v) == null) {
-                              return 'Enter a valid number';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 40.0),
-
-                // Organisation ID handling (Kept as is)
-                orgIdRepo.when(
-                  data: (orgId) {
-                    orgID = orgId ?? '';
-                    return const SizedBox.shrink(); // Use shrink for zero space
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Text('Error: $err'),
-                ),
-
-                // --- 5. Submission Button (Styled) ---
-                ElevatedButton.icon(
-                  onPressed: () {
-                    if (!_formKey.currentState!.validate()) {
-                      return;
-                    }
-
-                    final newEntity = EntitiesModel(
-                      name: _nameController.text,
-                      type: _selectedType != null
-                          ? getEntityTypeName(_selectedType!)
-                          : '',
-                      frames: Frames(
-                        honeyFrames:
-                            int.tryParse(_honeyFramesController.text) ?? 0,
-                        broodFrames:
-                            int.tryParse(_broodFramesController.text) ?? 0,
-                        pollenFrames:
-                            int.tryParse(_pollenFramesController.text) ?? 0,
-                        emptyFrames:
-                            int.tryParse(_emptyFramesController.text) ?? 0,
-                      ),
-                      queen: _hasQueen
-                          ? Queen(
-                              hasQueen: _hasQueen,
-                              marked: _queenMarked,
-                              year:
-                                  int.tryParse(_queenYearController.text) ?? 0,
-                              rating: _queenRating ?? 0,
-                            )
-                          : null,
-                    );
-
-                    entitiesRef.createEntity(
-                        organisationId: orgID, entity: newEntity);
-
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.add_circle_outline),
-                  label: const Padding(
-                    padding: EdgeInsets.all(12.0),
-                    child: Text(
-                      'Create Entity',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    elevation: 4,
-                  ),
-                ),
-                const SizedBox(height: 24.0),
-              ],
-            ),
-          ),
-        ],
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
